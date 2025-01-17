@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap");
+
+body {
+  font-family: "Roboto", sans-serif;
+  background-color: #eff6fc;
+}
+
+.bg_chat_Image {
+  /* background-image: url("./assets/images/bg-chat.png"); */
+  background-image: "./assets/images/bg-chat.png";
+  background-size: "100% 100%";
+  background-position: center;
+
+  z-index: 4;
+}
