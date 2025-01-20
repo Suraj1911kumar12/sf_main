@@ -12,10 +12,11 @@ const UserContextProvider = ({ children }) => {
       count: null,
     },
   ]);
-  console.log("0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0");
-  console.log(personalChat);
-  console.log(personalChat?.lastMsg_Content);
-  console.log("0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0-0");
+
+  const [totalCountForList, setTotalCountForList] = useState({
+    list: [],
+    group: [],
+  });
 
   return (
     <UserContext.Provider
@@ -34,6 +35,9 @@ const UserContextProvider = ({ children }) => {
 
         isContactListUpdated,
         setIsContactListUpdated,
+
+        totalCountForList,
+        setTotalCountForList,
       }}
     >
       {children}

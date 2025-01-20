@@ -31,6 +31,15 @@ export function formatDate(dateString, format = "iso") {
         timeZone: "UTC",
       })}`;
     }
+    case "time-12": {
+      // 12-hour format  in UTC
+      return ` ${date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "UTC",
+      })}`;
+    }
 
     case "iso": {
       // ISO format with date and time (YYYY-MM-DDTHH:mm:ss.sssZ) in UTC

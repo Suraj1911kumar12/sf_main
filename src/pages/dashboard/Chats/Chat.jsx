@@ -4,20 +4,30 @@ import ChatFullSearch from "../../../components/Searchs/ChatFullSearch";
 import GroupList from "./ChatList/GroupList";
 import PersonalList from "./ChatList/PersonalList";
 import ChatContent from "../../../components/UIComponent/Chats_comp/ChatContent";
-
-const tabs = [
-  {
-    id: 1,
-    title: "Chat",
-  },
-  {
-    id: 2,
-    title: "Group",
-  },
-];
+import UserContext from "../../../context/userContext";
 
 const Chat = () => {
   const [activeTab, setActiveTab] = useState(1);
+  const { totalCountForList, setTotalCountForList } = useContext(UserContext);
+
+  const tabs = [
+    {
+      id: 1,
+      title: `Chat ${
+        totalCountForList?.list?.length > 0
+          ? `(${totalCountForList.list?.length})`
+          : ""
+      }`,
+    },
+    {
+      id: 2,
+      title: `Group ${
+        totalCountForList?.group?.length > 0
+          ? `(${totalCountForList.group?.length})`
+          : ""
+      }`,
+    },
+  ];
 
   return (
     <>

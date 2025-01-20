@@ -13,6 +13,8 @@ const PersonalList = () => {
     personalListUpdated,
     personalListNotifications,
     setPersonalListNotifications,
+    totalCountForList,
+    setTotalCountForList,
   } = useContext(UserContext);
   const [personalChats, setPersonalChats] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,16 +33,20 @@ const PersonalList = () => {
       if (response?.status) {
         const data = response.data?.data;
         setPersonalChats(data);
-        data?.forEach((e) => {
-          setPersonalListNotifications((prev) => [
-            ...prev,
-            {
-              id: e?.userUUID,
-              count: e?.unseenMsgCount,
-            },
-          ]);
-        });
-        // setPersonalChat(response?.data?.data?.[0]);
+
+        // Calculate list total with unseen messages
+        const listTotal = data?.filter((e) => e?.unseenMsgCount > 0);
+        setTotalCountForList((prev) => ({
+          ...prev,
+          list: listTotal,
+        }));
+
+        // Batch updates for notifications
+        const notifications = listTotal?.map((e) => ({
+          id: e?.userUUID,
+          count: parseInt(e?.unseenMsgCount),
+        }));
+        setPersonalListNotifications(notifications);
       } else {
         setPersonalChats([]);
         console.error(
@@ -61,7 +67,8 @@ const PersonalList = () => {
 
   useEffect(() => {
     socket.on("personal-list-updated", (data) => {
-      setPersonalChats(data?.log);
+      console.log("data", data);
+      setPersonalChats((prevChats) => [...prevChats, ...(data?.log || [])]);
     });
     return () => {
       socket.off("personal-list-updated");
@@ -69,7 +76,7 @@ const PersonalList = () => {
   }, []);
 
   return (
-    <div className="h-full max-h-[500px]  overflow-y-auto ">
+    <div className="h-full max-h-[500px] overflow-y-auto">
       <CardLayout className={"overflow-hidden"}>
         <h1 className="text-xl font-semibold">Personal Chats</h1>
         {isLoading ? (
@@ -85,10 +92,11 @@ const PersonalList = () => {
                 lastMsg_seenAt,
                 userUUID,
               } = chat;
+
+              // Find the notification for the current chat
               const notification = personalListNotifications?.find(
                 (notif) => notif?.id === userUUID
               );
-              // console.log("notification", notification);
 
               return (
                 <div
@@ -97,9 +105,13 @@ const PersonalList = () => {
                     setPersonalChat(chat);
                     setPersonalListNotifications((prev) =>
                       prev.map((notif) =>
-                        notif.id === userUUID ? { ...notif, count: "0" } : notif
+                        notif.id === userUUID ? { ...notif, count: 0 } : notif
                       )
                     );
+                    setTotalCountForList((prev) => ({
+                      ...prev,
+                      list: prev?.list?.filter((e) => e?.userUUID !== userUUID),
+                    }));
                   }}
                   className={`flex items-center justify-between p-4 cursor-pointer bg-white border-b`}
                 >
@@ -115,7 +127,7 @@ const PersonalList = () => {
                         {userName}
                       </div>
                       <div
-                        className="text-sm max-w-[400px]  overflow-hidden text-gray-500 truncate"
+                        className="text-sm max-w-[400px] overflow-hidden text-gray-500 truncate"
                         dangerouslySetInnerHTML={{
                           __html: lastMsg_Content || "",
                         }}

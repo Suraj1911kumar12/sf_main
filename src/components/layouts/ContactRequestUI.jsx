@@ -3,12 +3,17 @@ import { FaPaperPlane } from "react-icons/fa";
 
 const ContactRequestUI = ({ personalChat, onSendRequest, status }) => {
   const [loading, setLoading] = useState(false);
+  const [innerStatus, setInnerStatus] = useState(status);
 
   const handleSendRequest = () => {
     if (onSendRequest) {
       setLoading(true);
       onSendRequest(personalChat?.uuid);
-      setTimeout(() => setLoading(false), 2000);
+
+      setTimeout(() => {
+        setLoading(false);
+        setInnerStatus("PENDING");
+      }, 2000);
     }
   };
 
@@ -22,14 +27,14 @@ const ContactRequestUI = ({ personalChat, onSendRequest, status }) => {
       </div>
 
       {/* Request Status */}
-      {status === "PENDING" ? (
+      {innerStatus === "PENDING" ? (
         <div className="text-center">
           <p className="text-lg font-semibold text-white">Request Pending</p>
           <p className="text-sm text-white/80 mt-2">
             Please wait for the request to be accepted.
           </p>
         </div>
-      ) : status === "NOT" ? (
+      ) : innerStatus === "NOT" ? (
         <div className="text-center">
           <p className="text-lg font-semibold text-white mb-4">
             Send Chat Request

@@ -30,7 +30,6 @@ const Contacts = () => {
       const response = await postRequest(api, payload);
       if (response.status) {
         setAllUsers(response.data?.data);
-        setPersonalChat(response?.data?.data?.[0]);
       }
     } catch (error) {
       console.log("error", error);

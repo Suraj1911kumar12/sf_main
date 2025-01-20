@@ -55,9 +55,7 @@ const MainLayout = () => {
         </div>
 
         {/* Chat Section */}
-        {(pathsegment === "contacts" ||
-          pathsegment === "chat" ||
-          pathsegment === "notifications") && (
+        {(pathsegment === "contacts" || pathsegment === "chat") && (
           <div className="w-full md:w-[45%] max-w-[580px] h-full overflow-hidden p-4">
             {personalChat ? (
               <ChatContent page={val} />

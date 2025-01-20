@@ -4,11 +4,24 @@ import { apis } from "../../../../utils/connection";
 import CardLayout from "../../../../components/layouts/CardLayout";
 import UserContext from "../../../../context/userContext";
 import CustomImage from "../../../../customs/CustomImage";
+import ChatContentSkeleton from "../../../../components/loaders/Skeletons/ChatSkeletonLoader";
 
 const GroupList = () => {
   const [groups, setGroups] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { setPersonalChat, setGroupChat } = useContext(UserContext);
+  const {
+    setPersonalChat,
+    setGroupChat,
+    totalCountForList,
+    setTotalCountForList,
+  } = useContext(UserContext);
+
+  const [notif_cont, setNotif_count] = useState([
+    {
+      id: null,
+      count: 0,
+    },
+  ]);
 
   const getGroups = async () => {
     const api = `${apis.empUrl}/group/list`;
@@ -18,7 +31,33 @@ const GroupList = () => {
       if (response?.status) {
         setGroups(response?.data?.data);
         setPersonalChat(null);
-        setGroupChat(response?.data?.data?.[0]);
+        response?.data?.data.forEach((e) => {
+          setNotif_count((prev) => {
+            const existingIndex = prev.findIndex(
+              (item) => item.id === e?.group?.uuid
+            );
+
+            if (existingIndex !== -1) {
+              const updatedNotifCount = [...prev];
+              updatedNotifCount[existingIndex] = {
+                ...updatedNotifCount[existingIndex],
+                count: e?.unseen,
+              };
+              return updatedNotifCount;
+            } else {
+              return [
+                ...prev,
+                {
+                  id: e?.group?.uuid,
+                  count: e?.unseen,
+                },
+              ];
+            }
+          });
+        });
+
+        const listTotal = response?.data?.data?.filter((e) => e?.unseen > 0);
+        setTotalCountForList((prev) => ({ ...prev, group: listTotal || 0 }));
       } else {
         setGroups([]);
         console.error("Error while fetching groups", response?.data?.msg);
@@ -29,6 +68,7 @@ const GroupList = () => {
       setIsLoading(false);
     }
   };
+  console.log(notif_cont, "not");
 
   useEffect(() => {
     getGroups();
@@ -45,19 +85,17 @@ const GroupList = () => {
     <CardLayout className="p-4 bg-gray-50 ">
       <h1 className="text-2xl font-bold text-gray-800 mb-4">Group List</h1>
       {isLoading ? (
-        <div className="flex justify-center items-center h-32">
-          <div className="loader border-t-4 border-blue-500 rounded-full w-10 h-10 animate-spin"></div>
-        </div>
+        <ChatContentSkeleton />
       ) : groups.length > 0 ? (
         <ul className="space-y-4">
-          {groups.map((groupData) => {
+          {groups?.map((groupData) => {
             const { group, unseen, lastMessage, addedBy } = groupData;
             return (
               <li
                 key={group.uuid}
                 onClick={() => {
                   setPersonalChat(null);
-                  setGroupChat(group);
+                  setGroupChat(groupData);
                 }}
                 className="p-4 bg-white border-b  flex gap-2 items-center  cursor-pointer justify-between"
               >
@@ -93,13 +131,13 @@ const GroupList = () => {
                 </div>
 
                 <div>
-                  {unseen > 0 ? (
+                  {/* {unseen > 0 ? (
                     <span className="inline-block bg-red-500 text-white text-xs font-bold py-1 px-2 rounded-full">
                       {unseen} New
                     </span>
                   ) : (
                     1
-                  )}
+                  )} */}
                 </div>
               </li>
             );

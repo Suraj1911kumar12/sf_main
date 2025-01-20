@@ -27,18 +27,18 @@ import { useSelector } from "react-redux";
 import ContactRequestUI from "../../layouts/ContactRequestUI";
 import usePathSegment from "../../../context/useSegment";
 import { formatDate, getDateLabel } from "../../../utils/formatter";
-import { MdKeyboardArrowDown } from "react-icons/md";
 import MsgDetails from "../MsgDetails";
-import MessageDetailsModal from "../MsgDetails";
-import { FaAngleDown } from "react-icons/fa";
 
 const ChatContent = () => {
-  const scrollableDiv = useRef(null);
-  const containerRef = useRef();
-  const lastSegment = usePathSegment();
   const userInfo = useSelector((state) => state?.userInfo);
   const { personalChat, setIsContactListUpdated, setPersonalListUpdated } =
     useContext(UserContext);
+
+  const containerRef = useRef();
+  const scrollableDiv = useRef(null);
+  const personalChatRef = useRef(personalChat);
+
+  const lastSegment = usePathSegment();
   const [personalLogs, setPersonalLogs] = useState([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -57,23 +57,22 @@ const ChatContent = () => {
     data: null,
   });
 
-  // console.log("lastSegment", lastSegment);
-  // console.log("personalChat", personalChat);
-
   const getPersonalLog = async () => {
+    const dynamicLastSegment = lastSegment;
+
     const api = apis.empUrl + "/user/log/details";
     const payload = {
       connectionId:
-        lastSegment === "chat"
+        dynamicLastSegment === "chat"
           ? personalChat?.id
-          : lastSegment === "contacts"
+          : dynamicLastSegment === "contacts"
           ? personalChat?.connectionId
           : null,
       count: 10000,
-      lastSegment: 1,
       search: "",
       markSeen: true,
     };
+
     try {
       const response = await postRequest(api, payload);
       if (response.status) {
@@ -86,6 +85,12 @@ const ChatContent = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if ((personalChat?.id || personalChat?.connectionId) && lastSegment) {
+      getPersonalLog();
+    }
+  }, [personalChat, lastSegment]);
 
   const socketMsgReceiveSelf = (data) => {
     const MsgDet = data?.log?.data;
@@ -123,11 +128,14 @@ const ChatContent = () => {
     }
   };
 
-  // console.log("personalChat", personalChat);
+  useEffect(() => {
+    personalChatRef.current = personalChat;
+  }, [personalChat]);
 
   const socketMsgReceive = (data) => {
     const MsgDet = data?.log?.data;
-    console.log("socketMsgReceive", MsgDet);
+    const currentPersonalChat = personalChatRef.current;
+
     const newReceiveMsg = {
       content: MsgDet?.content,
       createdAt: MsgDet?.createdAt,
@@ -155,22 +163,12 @@ const ChatContent = () => {
       to: MsgDet?.to,
       type: MsgDet?.type,
     };
-    // console.log("====================================");
-    // console.log(personalChat);
-    // console.log("========223222222222222=====================");
-    // console.log(
-    //   "personalChat?.userUUID === MsgDet?.from?.uuid",
-    //   personalChat?.userUUID === MsgDet?.from?.uuid,
-    //   personalChat?.userUUID,
-    //   MsgDet?.from?.uuid
-    // );
-
-    if (personalChat?.userUUID === MsgDet?.from?.uuid) {
+    if (MsgDet?.from?.uuid === currentPersonalChat?.userUUID) {
       setPersonalLogs((prev) => [...prev, newReceiveMsg]);
     }
 
     const notification = {
-      userUUID: personalChat?.uuid,
+      userUUID: currentPersonalChat?.uuid,
       msgId: MsgDet?.id,
     };
 
@@ -182,6 +180,7 @@ const ChatContent = () => {
     socket.on("receive-message-in-personal", socketMsgReceive);
 
     socket.on("personal-list-updated", (data) => {
+      console.log("data personal", data);
       setPersonalListUpdated(new Date());
     });
     return () => {
@@ -325,7 +324,6 @@ const ChatContent = () => {
   };
 
   const handleClickMsgDetails = (data) => {
-    console.log("handleClickMsgDetails", data);
     if (data?.id === 2) {
       setRepliedMessage({
         data: selectedMessage,
@@ -346,6 +344,30 @@ const ChatContent = () => {
       );
     }
   };
+
+  const processedContent = (data) => {
+    return data?.map((content) => {
+      let processedContent = content.content;
+
+      if (processedContent.includes("#@from#") && content.from) {
+        processedContent = processedContent.replace(
+          "#@from#",
+          content?.from?.name
+        );
+      }
+
+      if (processedContent.includes("#@to#") && content?.to) {
+        processedContent = processedContent.replace("#@to#", content?.to?.name);
+      }
+
+      return {
+        ...content,
+        content: processedContent,
+      };
+    });
+  };
+
+  const processedList = processedContent(personalLogs);
 
   return (
     <motion.div
@@ -420,9 +442,10 @@ const ChatContent = () => {
         >
           {isLoading ? (
             <ChatContentSkeleton />
-          ) : personalLogs.length > 0 ? (
-            personalLogs.map((log) => {
+          ) : processedList?.length > 0 ? (
+            processedList?.map((log) => {
               let lastDate = null;
+
               const isCurrentUser = log?.from?.uuid === currentUserUUID;
               const msgDateLabel = getDateLabel(log?.createdAt);
 
@@ -496,7 +519,7 @@ const ChatContent = () => {
                           log?.msgType === "TEXT" ? (
                             <motion.div
                               key={log.id}
-                              className={`flex w-full relative  ${
+                              className={`flex w-full relative ${
                                 isCurrentUser ? "justify-end" : "justify-start"
                               }`}
                               initial={{
@@ -512,15 +535,14 @@ const ChatContent = () => {
                                   e.preventDefault();
                                   handleRightClick(e, log);
                                 }}
-                                className={`max-w-[60%] px-4 py-2 text-base rounded-lg break-words shadow-md ${
+                                className={`max-w-[60%] px-4 py-3 text-base rounded-lg break-words shadow-md ${
                                   isCurrentUser
                                     ? "bg-mainColor text-white self-end"
                                     : "bg-gray-200 text-gray-800 self-start"
                                 }`}
                               >
-                                {log?.repliedTo ? (
+                                {log?.repliedTo && (
                                   <div className="flex flex-col bg-gray-50 border-l-4 border-blue-500 pl-4 pr-2 py-2 rounded-lg shadow-sm mb-3">
-                                    {/* Reply Header */}
                                     <div className="flex items-center gap-2 text-blue-500 mb-2">
                                       <HiReply className="text-xl" />
                                       <span className="text-sm font-semibold text-gray-800">
@@ -528,10 +550,7 @@ const ChatContent = () => {
                                           "Unknown"}
                                       </span>
                                     </div>
-
-                                    {/* Content and Timestamp */}
                                     <div className="flex justify-between items-center">
-                                      {/* Content */}
                                       <div
                                         className="text-sm text-gray-800 leading-relaxed"
                                         dangerouslySetInnerHTML={{
@@ -540,7 +559,6 @@ const ChatContent = () => {
                                             "No content",
                                         }}
                                       />
-                                      {/* Timestamp */}
                                       <span className="text-xs text-gray-500 italic whitespace-nowrap ml-4">
                                         {formatDate(
                                           log?.repliedTo?.createdAt,
@@ -549,7 +567,7 @@ const ChatContent = () => {
                                       </span>
                                     </div>
                                   </div>
-                                ) : null}
+                                )}
 
                                 <div
                                   dangerouslySetInnerHTML={{
@@ -570,48 +588,45 @@ const ChatContent = () => {
                                 />
                               )}
                             </motion.div>
-                          ) : (
-                            log?.msgType === "FILE" && (
-                              <motion.div
-                                key={log.id}
-                                className={`flex w-full ${
-                                  isCurrentUser
-                                    ? "justify-end"
-                                    : "justify-start"
-                                }`}
-                                initial={{
-                                  opacity: 0,
-                                  x: isCurrentUser ? 50 : -50,
+                          ) : log?.msgType === "FILE" ? (
+                            <motion.div
+                              key={log.id}
+                              className={`flex w-full ${
+                                isCurrentUser ? "justify-end" : "justify-start"
+                              }`}
+                              initial={{
+                                opacity: 0,
+                                x: isCurrentUser ? 50 : -50,
+                              }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.5 }}
+                            >
+                              <div
+                                onContextMenu={(e) => {
+                                  handleRightClick(e, log);
                                 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ duration: 0.5 }}
+                                className="flex items-center justify-center"
                               >
-                                <div
-                                  onContextMenu={(e) => {
-                                    handleRightClick(e, log);
-                                  }}
-                                >
-                                  <CustomImage
-                                    src={log?.file?.path}
-                                    alt={log?.file?.path}
-                                    className="h-auto w-auto max-w-[200px] object-contain rounded-md max-h-[200px]"
-                                  />
-                                  {showModal &&
-                                    selectedMessage?.id === log?.id && (
-                                      <MsgDetails
-                                        contextMenu={contextMenuSize}
-                                        onClick={handleClickMsgDetails}
-                                        onClose={() => {
-                                          setShowModal(false);
-                                          setSelectedMessage(null);
-                                          setContextMenuSize(null);
-                                        }}
-                                      />
-                                    )}
-                                </div>
-                              </motion.div>
-                            )
-                          )
+                                <CustomImage
+                                  src={log?.file?.path}
+                                  alt={log?.file?.path}
+                                  className="h-auto w-auto max-w-[200px] object-contain rounded-md max-h-[200px] transition-transform transform hover:scale-105 hover:shadow-lg"
+                                />
+                                {showModal &&
+                                  selectedMessage?.id === log?.id && (
+                                    <MsgDetails
+                                      contextMenu={contextMenuSize}
+                                      onClick={handleClickMsgDetails}
+                                      onClose={() => {
+                                        setShowModal(false);
+                                        setSelectedMessage(null);
+                                        setContextMenuSize(null);
+                                      }}
+                                    />
+                                  )}
+                              </div>
+                            </motion.div>
+                          ) : null
                         ) : (
                           ""
                         )}
